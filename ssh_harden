@@ -127,7 +127,7 @@ fi
 }
 macs(){
     if [[ "$version -le '6.6'" ]]; then
-	awk '/Ciphers aes256-ctr,aes192-ctr,aes128-ctr/ { print; print "MACS hmac-sha2-512,hmac-sha2-256 "; next}1' $SSHD_CONFIG_FILE > $TMP_FILE
+	awk '/Ciphers aes256-ctr,aes192-ctr,aes128-ctr, ecdh-sha2-nistp521/ { print; print "MACS hmac-sha2-512,hmac-sha2-256 "; next}1' $SSHD_CONFIG_FILE > $TMP_FILE
 	mv $TMP_FILE $SSHD_CONFIG_FILE
     else
 	awk '/Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr/ { print; print "MACS hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com"; next}1' $SSHD_CONFIG_FILE  > $TMP_FILE
