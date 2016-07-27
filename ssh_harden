@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# This script will harden you sshd :)
+# Tasks of this script:
+#	1. Check for root privileges
+#	2. Check if sshd_config exists
+#	3. Backup current 'sshd_config'
+#	4. Check OpenSSH-Server Version
+#	5. Change values in 'sshd_config':
+#		- Ciphers (will be added if not existing)
+#		- KexAlgorithms (will be added if not existing)
+#		- MACS (will be added if not existing)
+#		- Security Parameters
+#	6. Check if any errors occured
+#		- Output errors
+#		- Correction by user	
+#	7. Restart sshd
+
+usage() {
+    echo "usage: $0 [-e] [-p /path/to/sshd_conf] [-f file_name]"
+    echo "      -e              turns on extended security features"
+    exit 1
+}
+options() {
+add_optional_options
+}
+
+
+SSHD_CONFIG_PATH="/etc/ssh"
+SSHD_CONFIG_FILE_NAME="sshd_config"
+#SSHD_CONFIG_FILE="$SSHD_CONFIG_PATH"/"$SSHD_CONFIG_FILE_NAME"
+TMP_FILE=$(mktemp /tmp/sshd_config.tmp.XXXXX)
+
+while getopts ":E:e:P:p:F:f:H:h" opt;do
+        case $opt in
+                E|e)
+                  options;;
+                P|p)
+                  SSHD_CONFIG_PATH=$OPTARG;;
+                F|f)
+                  SSHD_CONFIG_FILE_NAME=$OPTARG;;
+                H|h)
+                  usage;;
+		\?)
+                  echo "Invalid option: -$OPTARG" >&2 ;;
+
+ esac
+done
+
+SSHD_CONFIG_FILE="$SSHD_CONFIG_PATH/$SSHD_CONFIG_FILE_NAME"
+
+clean() {
+    rm -f $TMP_FILE
+}
+
+
+usage() {
+    echo "usage: $0 [-e] [-p /path/to/sshd_conf] [-f file_name]"
+    echo "	-e		turns on extended security features"
+    clean
+    exit 1
+}
+
+
+
+
+check_if_sshd_config_file_exist() {	 
+  if [[ -f $SSHD_CONFIG_FILE ]]; then
+    echo "sshd_config found"
+  else
+    echo -n "Unable to find sshd_config. Please specify path: "
+    read SSHD_CONFIG_FILE
+  fi
+}
+
+backup(){
+    date=$(date +"%Y_%m_%Y_%M_%H_")
+    cp $SSHD_CONFIG_FILE $SSHD_CONFIG_FILE.$date
+}
+
+check_sshd_version(){
+    VERSION="$(apt-show-versions openssh-server | grep -Eo '1:[0-9].[0-9]' | grep -Eo '[0-9]\.[0-9]')"
+    echo "Installed OpenSSH-Server Version: " $VERSION
+	echo $VERSION
+}
+
+kexalgorithms(){
+    if [[ "$version -le '6.6'" ]]; then
+	awk '/Protocol 2.*/ { print; print "KexAlgorithms diffie-hellman-group-exchange-sha256 "; next}1' $SSHD_CONFIG_FILE  > $TMP_FILE
+	mv $TMP_FILE $SSHD_CONFIG_FILE
+    else
+	awk '/Protocol 2.*/ { print; print "KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256 ";next}1' $SSHD_CONFIG_FILE > $TMP_FILE
+	mv $TMP_FILE $SSHD_CONFIG_FILE
+    fi
+}
+
+ciphers(){
+    if [[ "$version -le '6.6'" ]]; then
+	awk '/KexAlgorithms diffie-hellman-group-exchange-sha256/ { print; print "Ciphers aes256-ctr,aes192-ctr,aes128-ctr "; next}1' $SSHD_CONFIG_FILE > $TMP_FILE
+	mv $TMP_FILE $SSHD_CONFIG_FILE
+    else
+	awk '/KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256/ { print; print "Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr "; next}1' $SSHD_CONFIG_FILE > $TMP_FILE
+	mv $TMP_FILE $SSHD_CONFIG_FILE
+    fi
+}
+
+ciphers2() {
+grep -qi ^Ciphers $SSHD_CONFIG_FILE && 
+sed -i "s/Ciphers.*/Ciphers aes128-ctr,aes192-ctr,aes256-ctr,aes128-cbc,3des-cbc,aes192-cbc,aes256-cbc/gI" $SSHD_CONFIG_FILE
+    if ! [ $? -eq 0 ]; then
+    echo "Ciphers aes128-ctr,aes192-ctr,aes256-ctr,aes128-cbc,3des-cbc,aes192-cbc,aes256-cbc" >> $SSHD_CONFIG_FILE
+fi
+}
+macs(){
+    if [[ "$version -le '6.6'" ]]; then
+	awk '/Ciphers aes256-ctr,aes192-ctr,aes128-ctr/ { print; print "MACS hmac-sha2-512,hmac-sha2-256 "; next}1' $SSHD_CONFIG_FILE > $TMP_FILE
+	mv $TMP_FILE $SSHD_CONFIG_FILE
+    else
+	awk '/Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr/ { print; print "MACS hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com"; next}1' $SSHD_CONFIG_FILE  > $TMP_FILE
+	mv $TMP_FILE $SSHD_CONFIG_FILE
+    fi
+}
+
+macs2() {
+grep -qi ^MACs /etc/ssh/sshd_config && 
+sed -i "s/MACs.*/MACs hmac-sha2-512,hmac-sha2-256,hmac-sha1/gI" /etc/ssh/sshd_config
+    if ! [ $? -eq 0 ]; then
+    echo "MACs hmac-sha2-512,hmac-sha2-256,hmac-sha1" >> /etc/ssh/sshd_config
+fi
+}
+
+add_optional_options(){
+    echo "Adding optional features..."
+    sed -i -e 's/^.*Protocol.*$/Protocol 2 #changed by hardening script/' $SSHD_CONFIG_FILE 
+    sed -i -e 's/^.*LogLevel.*/LogLevel VERBOSE  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*RSAAuthentication.*/RSAAuthentication no  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*PubkeyAuthentication.*/PubkeyAuthentication yes  #changed by hardening script/' $SSHD_CONFIG_FILE 
+    sed -i -e 's/^.*AllowTcpForwarding.*/AllowTcpForwarding no  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*X11Forwarding.*/X11Forwarding no  #changed by hardening script/' $SSHD_CONFIG_FILE 
+    sed -i -e 's/^.*StrictModes.*/StrictModes yes  #changed by hardening script/' $SSHD_CONFIG_FILE  
+    sed -i -e 's/^.*PermitRootLogin.*/PermitRootLogin no  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*MaxAuthTries.*/MaxAuthTries 6  #changed by hardening script/' $SSHD_CONFIG_FILE 
+}
+add_kex_cipher_macs(){
+egrep -E 'KexAlgorithms\s.*' $SSHD_CONFIG_FILE &> /dev/null
+if [[ $? == 0 ]]; then
+        echo "Kex Algorithms found!"
+else
+        echo "Kex Algorithms NOT found! Adding now..."
+	kexalgorithms
+fi
+
+egrep -E 'Ciphers\s.*,' $SSHD_CONFIG_FILE &> /dev/null
+if [[ $? == 0 ]]; then
+	echo "Ciphers found!"
+else
+	echo "Ciphers NOT found! Adding now..."
+	ciphers2
+fi
+
+egrep -E 'MACs\s.*,*' $SSHD_CONFIG_FILE &> /dev/null
+if [[ $? == 0 ]]; then
+        echo "MACs found!"
+else  
+	echo "MACs NOT found! Adding now..."
+	macs2
+fi
+
+}
+##
+
+echo -e "directory where sshd_conf is stored = " "\033[32m$SSHD_CONFIG_PATH\033[0m"
+echo -e "sshd_config = " "\033[34m$SSHD_CONFIG_FILE_NAME\033[0m"
+echo -e "full path = " "\033[36m$SSHD_CONFIG_FILE\033[0m"
+read -p "[Enter] to continue or CTRL+C to exit"
+
+
+check_if_sshd_config_file_exist
+backup
+check_sshd_version
+add_kex_cipher_macs
+add_optional_options
+clean
+sshd -t
