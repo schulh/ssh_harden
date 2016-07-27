@@ -1,3 +1,2 @@
 # ssh_harden
-# ssh_hardening
-# ssh_harden
+This little script will help you to secure your OpenSSH-Server!
