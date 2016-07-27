@@ -88,7 +88,7 @@ check_if_sshd_config_file_exist() {
 }
 
 backup(){
-    date=$(date +"%Y_%m_%Y_%M_%H_")
+    date=$(date +"%Y_%m_%Y_%H_%M_")
     cp $SSHD_CONFIG_FILE $SSHD_CONFIG_FILE.$date
 }
 
