@@ -13,7 +13,6 @@
 #	6. Check if any errors occured
 #		- Output errors
 #		- Correction by user	
-#	7. Restart sshd
 
 usage() {
     echo "usage: $0 [-e] [-p /path/to/sshd_conf] [-f file_name]"
