@@ -20,7 +20,16 @@ usage() {
     exit 1
 }
 options() {
-add_optional_options
+    echo "Adding optional features..."
+    sed -i -e 's/^.*Protocol.*$/Protocol 2 #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*LogLevel.*/LogLevel VERBOSE  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*RSAAuthentication.*/RSAAuthentication no  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*PubkeyAuthentication.*/PubkeyAuthentication yes  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*AllowTcpForwarding.*/AllowTcpForwarding no  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*X11Forwarding.*/X11Forwarding no  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*StrictModes.*/StrictModes yes  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*PermitRootLogin.*/PermitRootLogin no  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*MaxAuthTries.*/MaxAuthTries 6  #changed by hardening script/' $SSHD_CONFIG_FILE
 }
 
 
@@ -184,6 +193,6 @@ check_if_sshd_config_file_exist
 backup
 check_sshd_version
 add_kex_cipher_macs
-add_optional_options
+#add_optional_options
 clean
 sshd -t
