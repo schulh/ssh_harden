@@ -100,7 +100,7 @@ check_sshd_version(){
 
 kexalgorithms(){
     if [[ "$version -le '6.6'" ]]; then
-	awk '/Protocol 2.*/ { print; print "KexAlgorithms diffie-hellman-group-exchange-sha256 "; next}1' $SSHD_CONFIG_FILE  > $TMP_FILE
+	awk '/Protocol 2.*/ { print; print "KexAlgorithms diffie-hellman-group-exchange-sha256, curve25519-sha256@libssh.org, ecdh-sha2-nistp521 "; next}1' $SSHD_CONFIG_FILE  > $TMP_FILE
 	mv $TMP_FILE $SSHD_CONFIG_FILE
     else
 	awk '/Protocol 2.*/ { print; print "KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256 ";next}1' $SSHD_CONFIG_FILE > $TMP_FILE
@@ -110,7 +110,7 @@ kexalgorithms(){
 
 ciphers(){
     if [[ "$version -le '6.6'" ]]; then
-	awk '/KexAlgorithms diffie-hellman-group-exchange-sha256/ { print; print "Ciphers aes256-ctr,aes192-ctr,aes128-ctr "; next}1' $SSHD_CONFIG_FILE > $TMP_FILE
+	awk '/KexAlgorithms diffie-hellman-group-exchange-sha256/ { print; print "Ciphers aes256-ctr,aes192-ctr,aes128-ctr, ecdh-sha2-nistp521 "; next}1' $SSHD_CONFIG_FILE > $TMP_FILE
 	mv $TMP_FILE $SSHD_CONFIG_FILE
     else
 	awk '/KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256/ { print; print "Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr "; next}1' $SSHD_CONFIG_FILE > $TMP_FILE
@@ -169,7 +169,7 @@ if [[ $? == 0 ]]; then
 	echo "Ciphers found!"
 else
 	echo "Ciphers NOT found! Adding now..."
-	ciphers2
+	ciphers
 fi
 
 egrep -E 'MACs\s.*,*' $SSHD_CONFIG_FILE &> /dev/null
@@ -177,7 +177,7 @@ if [[ $? == 0 ]]; then
         echo "MACs found!"
 else  
 	echo "MACs NOT found! Adding now..."
-	macs2
+	macs
 fi
 
 }
