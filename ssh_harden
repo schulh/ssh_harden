@@ -47,10 +47,17 @@ done
 
 SSHD_CONFIG_FILE="$SSHD_CONFIG_PATH/$SSHD_CONFIG_FILE_NAME"
 
-clean() {
-    rm -f $TMP_FILE
+check_root(){
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 }
 
+clean(){
+    rm -f $TMP_FILE
+}
 
 usage() {
     echo "usage: $0 [-e] [-p /path/to/sshd_conf] [-f file_name]"
@@ -172,7 +179,7 @@ echo -e "sshd_config = " "\033[34m$SSHD_CONFIG_FILE_NAME\033[0m"
 echo -e "full path = " "\033[36m$SSHD_CONFIG_FILE\033[0m"
 read -p "[Enter] to continue or CTRL+C to exit"
 
-
+check_root
 check_if_sshd_config_file_exist
 backup
 check_sshd_version
