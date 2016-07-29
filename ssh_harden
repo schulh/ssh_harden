@@ -14,6 +14,7 @@
 #		- Output errors
 #		- Correction by user	
 SSHD_CONFIG_FILE="/etc/ssh/sshd_config"
+ADD_EXTRA=0
 
 usage() {
     echo "usage: $0 [-e] [-f file_name | default is "/etc/ssh/sshd_config"]"
@@ -22,15 +23,15 @@ usage() {
 }
 options() {
     echo "Adding optional features..."
-    sed -i -e 's/^.*Protocol.*$/Protocol 2 #changed by hardening script/' $SSHD_CONFIG_FILE
-    sed -i -e 's/^.*LogLevel.*/LogLevel VERBOSE  #changed by hardening script/' $SSHD_CONFIG_FILE
-    sed -i -e 's/^.*RSAAuthentication.*/RSAAuthentication no  #changed by hardening script/' $SSHD_CONFIG_FILE
-    sed -i -e 's/^.*PubkeyAuthentication.*/PubkeyAuthentication yes  #changed by hardening script/' $SSHD_CONFIG_FILE
-    sed -i -e 's/^.*AllowTcpForwarding.*/AllowTcpForwarding no  #changed by hardening script/' $SSHD_CONFIG_FILE
-    sed -i -e 's/^.*X11Forwarding.*/X11Forwarding no  #changed by hardening script/' $SSHD_CONFIG_FILE
-    sed -i -e 's/^.*StrictModes.*/StrictModes yes  #changed by hardening script/' $SSHD_CONFIG_FILE
-    sed -i -e 's/^.*PermitRootLogin.*/PermitRootLogin no  #changed by hardening script/' $SSHD_CONFIG_FILE
-    sed -i -e 's/^.*MaxAuthTries.*/MaxAuthTries 6  #changed by hardening script/' $SSHD_CONFIG_FILE
+    sed -i -e 's/^.*Protocol.*$/Protocol 2 #changed by hardening script/' $TMP_FILE
+    sed -i -e 's/^.*LogLevel.*/LogLevel VERBOSE  #changed by hardening script/' $TMP_FILE
+    sed -i -e 's/^.*RSAAuthentication.*/RSAAuthentication no  #changed by hardening script/' $TMP_FILE
+    sed -i -e 's/^.*PubkeyAuthentication.*/PubkeyAuthentication yes  #changed by hardening script/' $TMP_FILE
+    sed -i -e 's/^.*AllowTcpForwarding.*/AllowTcpForwarding no  #changed by hardening script/' $TMP_FILE
+    sed -i -e 's/^.*X11Forwarding.*/X11Forwarding no  #changed by hardening script/' $TMP_FILE
+    sed -i -e 's/^.*StrictModes.*/StrictModes yes  #changed by hardening script/' $TMP_FILE
+    sed -i -e 's/^.*PermitRootLogin.*/PermitRootLogin no  #changed by hardening script/' $TMP_FILE
+    sed -i -e 's/^.*MaxAuthTries.*/MaxAuthTries 6  #changed by hardening script/' $TMP_FILE
 }
 
 check_sshd_version(){
@@ -56,7 +57,8 @@ add_hardening() {
     #add KexAlgorithms Ciphers MACS to the right place
     sed -i "/Protocol 2.*/a KexAlgorithms \nCiphers \nMACS " $TMP_FILE
     #do hardening
-    if [[ $(echo "$SSHD_VERSION < 6.6" | bc) ]]; then
+    CHECK_SSH_VERSION=`echo "$SSHD_VERSION < 6.6" | bc`
+    if [[ $CHECK_SSH_VERSION -eq "1"  ] ]]; then
         sed -i "s/^KexAlgorithms /KexAlgorithms diffie-hellman-group-exchange-sha256 /g" $TMP_FILE
         sed -i "s/^Ciphers /Ciphers aes256-ctr,aes192-ctr,aes128-ctr /g" $TMP_FILE
         sed -i "s/^MACS /MACS hmac-sha2-512,hmac-sha2-256 /g" $TMP_FILE
@@ -65,6 +67,9 @@ add_hardening() {
         sed -i "s/^Ciphers /Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr /g" $TMP_FILE
         sed -i "s/^MACS /MACS hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com /g" $TMP_FILE
     fi
+    if [[ $ADD_EXTRA == 1 ]]; then
+        options
+    fi
     #test if everything went okay and restart the sshd
     sshd -t -f $TMP_FILE
     if [[ $? -eq  0 ]]; then
@@ -72,21 +77,25 @@ add_hardening() {
         rm -f $TMP_FILE
         if [ -x /usr/bin/systemctl ] ; then
             systemctl restart sshd
+        elif [ -x /bin/systemctl ] ; then
+            systemctl restart ssh
         else
             /etc/init.d/sshd restart
         fi
+
     else
         echo "Something went wrong..."
         rm -f $TMP_FILE
         exit -1
     fi
+
 }
 
 
 while getopts ":E:e:F:f:H:h" opt;do
         case $opt in
                 E|e)
-                  options;;
+                  ADD_EXTRA=1;;
                 F|f)
                   SSHD_CONFIG_FILE=$OPTARG;;
                 H|h)
