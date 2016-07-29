@@ -13,6 +13,7 @@
 #	6. Check if any errors occured
 #		- Output errors
 #		- Correction by user	
+SSHD_CONFIG_FILE="/etc/ssh/sshd_config"
 
 usage() {
     echo "usage: $0 [-e] [-f file_name]"
@@ -32,8 +33,19 @@ options() {
     sed -i -e 's/^.*MaxAuthTries.*/MaxAuthTries 6  #changed by hardening script/' $SSHD_CONFIG_FILE
 }
 
+check_sshd_version(){
+command -v yum  &> /dev/null
+if [[ $? -eq  0 ]]; then
+   SSHD_VERSION="$(yum list installed | grep openssh-server | awk '{print $2}' | grep -Eo '^[0-9].[0-9]')"   
+else
+   SSHD_VERSION="$(apt-show-versions openssh-server | grep -Eo '1:[0-9].[0-9]' | grep -Eo '[0-9]\.[0-9]')" 
+fi
+
+echo "Installed OpenSSH-Server Version:" $SSHD_VERSION
+}
 add_hardening() {
-    echo -e "full path = " "\033[36m$SSHD_CONFIG_FILE\033[0m"
+    check_sshd_version
+    echo -e "Path to sshd_config = " "\034[36m$SSHD_CONFIG_FILE\033[0m"
     read -p "[Enter] to continue or CTRL+C to exit"
     TMP_FILE=$(mktemp /tmp/sshd_config.tmp.XXXXX)
     cp $SSHD_CONFIG_FILE $TMP_FILE
@@ -44,7 +56,6 @@ add_hardening() {
     #add KexAlgorithms Ciphers MACS to the right place
     sed -i "/Protocol 2.*/a KexAlgorithms \nCiphers \nMACS " $TMP_FILE
     #do hardening
-    SSHD_VERSION="$(yum list installed | grep openssh-server | awk '{print $2}' | grep -Eo '^[0-9].[0-9]')"
     if [[ $(echo "$SSHD_VERSION < 6.6" | bc) ]]; then
         sed -i "s/^KexAlgorithms /KexAlgorithms diffie-hellman-group-exchange-sha256 /g" $TMP_FILE
         sed -i "s/^Ciphers /Ciphers aes256-ctr,aes192-ctr,aes128-ctr /g" $TMP_FILE
