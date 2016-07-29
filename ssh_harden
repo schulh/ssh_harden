@@ -16,7 +16,7 @@
 SSHD_CONFIG_FILE="/etc/ssh/sshd_config"
 
 usage() {
-    echo "usage: $0 [-e] [-f file_name]"
+    echo "usage: $0 [-e] [-f file_name | default is "/etc/ssh/sshd_config"]"
     echo "-e turns on extended security features"
     exit 1
 }
@@ -45,7 +45,7 @@ echo "Installed OpenSSH-Server Version:" $SSHD_VERSION
 }
 add_hardening() {
     check_sshd_version
-    echo -e "Path to sshd_config = " "\034[36m$SSHD_CONFIG_FILE\033[0m"
+    echo -e "Path to sshd_config = " "\033[31m$SSHD_CONFIG_FILE\033[0m"
     read -p "[Enter] to continue or CTRL+C to exit"
     TMP_FILE=$(mktemp /tmp/sshd_config.tmp.XXXXX)
     cp $SSHD_CONFIG_FILE $TMP_FILE
@@ -83,7 +83,7 @@ add_hardening() {
 }
 
 
-while getopts ":E:e:P:p:F:f:H:h" opt;do
+while getopts ":E:e:F:f:H:h" opt;do
         case $opt in
                 E|e)
                   options;;
