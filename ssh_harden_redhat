@@ -18,8 +18,9 @@ add_hardening() {
     #add KexAlgorithms Ciphers MACS to the right place
     sed -i "/Protocol 2.*/a KexAlgorithms \nCiphers \nMACS " $TMP_FILE
     #do hardening
-    CHECK_SSH_VERSION=`echo "$SSHD_VERSION < 6.6" | bc`
+    
     SSHD_VERSION="$(yum list installed | grep openssh-server | awk '{print $2}' | grep -Eo '^[0-9].[0-9]')"
+    CHECK_SSH_VERSION=`echo "$SSHD_VERSION < 6.6" | bc`
     if [[ $CHECK_SSH_VERSION -eq "1" ]]; then
         sed -i "s/^KexAlgorithms /KexAlgorithms diffie-hellman-group-exchange-sha256 /g" $TMP_FILE
         sed -i "s/^Ciphers /Ciphers aes256-ctr,aes192-ctr,aes128-ctr /g" $TMP_FILE
